@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Promoter Pulse — Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section id="login-screen" class="login-page">
+      <div class="login-card">
+        <img src="assets/itc-logo.jpg" class="login-logo" alt="ITC — Enduring Value" />
+        <div class="login-divider"></div>
+        <p class="eyebrow">PROMOTER ASSESSMENT PLATFORM</p>
+        <h1>Welcome to ITC Promoter Pulse</h1>
+        <p class="muted">Sign in to access daily promoter assessments and operations controls.</p>
+        <form id="login-form">
+          <label for="username">Username</label>
+          <input id="username" autocomplete="username" placeholder="Enter username" required />
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="Enter password" required />
+          <p id="login-error" class="login-error hidden">Incorrect username or password. Please try again.</p>
+          <button class="primary full" type="submit">Sign in securely</button>
+        </form>
+        <p class="login-footer">ITC Limited · Internal use only</p>
+      </div>
+    </section>
+
+    <div id="app-shell" class="hidden">
+    <header>
+      <div class="brand"><img src="assets/itc-logo.jpg" alt="ITC" /><span>ITC Promoter Pulse</span><small>assessment platform</small></div>
+      <nav aria-label="App sections">
+        <button class="nav-btn active" data-view="promoter">Daily check-in</button>
+        <button class="nav-btn" data-view="admin">Operations admin</button>
+        <button id="logout" class="logout-button">Sign out</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="promoter" class="view active">
+        <div id="assessment-start" class="card narrow">
+          <p class="eyebrow">DAILY PROMOTER CHECK-IN</p>
+          <h1>Ready for today’s brand check?</h1>
+          <p class="muted">A single continuous recording takes around 5 minutes. Please complete it during your shift.</p>
+          <label for="promoter-select">Your personal link (demo)</label>
+          <select id="promoter-select"></select>
+          <div id="identity-card" class="identity-card"></div>
+          <div class="selection-grid">
+            <div><label for="language-select">Preferred language</label><select id="language-select"></select></div>
+            <div><label for="brand-select">ITC brand</label><select id="brand-select"></select></div>
+          </div>
+          <label class="consent"><input id="consent" type="checkbox" /> <span>I agree to be recorded for today’s assessment.</span></label>
+          <button id="begin-check" class="primary full">Continue</button>
+          <p id="window-message" class="hint"></p>
+        </div>
+
+        <div id="device-check" class="card narrow hidden">
+          <p class="eyebrow">STEP 1 OF 3</p><h1>Check your camera and mic</h1>
+          <p class="muted">Keep your face visible and speak clearly. Your recording is continuous—do not stop midway.</p>
+          <video id="preview" autoplay muted playsinline></video>
+          <div class="status-row"><span id="camera-status" class="status-dot"></span><span id="device-status">Requesting camera and microphone…</span></div>
+          <button id="start-interview" class="primary full" disabled>Start five questions</button>
+          <button class="text-button back">Back</button>
+        </div>
+
+        <div id="recording" class="card narrow hidden">
+          <div class="recording-top"><span class="recording-live"><i></i> RECORDING</span><span id="elapsed">00:00</span></div>
+          <div class="progress"><div id="progress-bar"></div></div>
+          <div id="assessment-context" class="assessment-context"></div>
+          <p id="question-count" class="eyebrow">QUESTION 1 OF 5</p>
+          <h1 id="question-text"></h1>
+          <p class="muted">Answer naturally in your preferred language. Press Next when you have finished.</p>
+          <video id="recording-preview" autoplay muted playsinline></video>
+          <button id="next-question" class="primary full">Next question</button>
+          <p class="hint">For the production flow, all questions can be read aloud by a presenter.</p>
+        </div>
+
+        <div id="complete" class="card narrow hidden">
+          <div class="success-icon">✓</div><p class="eyebrow">SUBMISSION RECEIVED</p>
+          <h1>Thank you, <span id="complete-name"></span>.</h1>
+          <p class="muted">Your recording has been saved and evaluated. Reference: <strong id="reference"></strong></p>
+          <div id="recording-result" class="recording-result hidden"><h2>Your submitted recording</h2><video id="recorded-video" controls playsinline></video><p id="transcript-status" class="hint"></p></div>
+          <div class="score-heading"><h2>Explainable AI score</h2><span id="overall-score" class="overall-score"></span></div>
+          <div id="score-preview" class="score-preview"></div>
+          <div id="score-explanation" class="score-explanation"></div>
+          <button id="again" class="secondary full">Return to daily check-in</button>
+        </div>
+      </section>
+
+      <section id="admin" class="view">
+        <div class="admin-head"><div><p class="eyebrow">OPERATIONS ONLY</p><h1>Daily assessment control room</h1><p class="muted">Manage promoter links, live completion and replacement history.</p></div><button id="reset-demo" class="secondary">Reset demo data</button></div>
+        <div class="metrics" id="metrics"></div>
+        <div class="admin-grid">
+          <div class="card"><div class="section-title"><h2>Live status</h2><span id="today-label"></span></div><div class="table-wrap"><table><thead><tr><th>Promoter / Store</th><th>City</th><th>Status</th><th>Score</th><th></th></tr></thead><tbody id="status-table"></tbody></table></div></div>
+          <aside class="card"><h2>Configure today</h2><label>Assessment window</label><div class="inline-inputs"><input id="start-time" type="time" value="10:00" /><span>to</span><input id="end-time" type="time" value="21:00" /></div><label>Question set</label><select id="question-set"><option>Brand knowledge — August</option><option>Sales pitch — refresher</option></select><label>Chase-list recipient</label><input id="recipient" value="area.managers@company.com" type="email" /><button id="save-settings" class="primary full">Save configuration</button><hr /><h3>Send invite link</h3><p class="hint">Links are personal and are reused daily.</p><button id="copy-link" class="secondary full">Copy selected promoter link</button></aside>
+        </div>
+        <section id="admin-review" class="card admin-review hidden"></section>
+        <div class="admin-grid bottom-grid">
+          <div class="card"><h2>Chase list</h2><p class="muted">Promoters who have not completed today’s assessment.</p><div id="chase-list"></div><button id="send-chase" class="primary">Prepare chase message</button></div>
+          <div class="card"><h2>Replace promoter</h2><p class="muted">The existing link is deactivated after confirmation. Store history continues; the replacement starts fresh.</p><label>Store position</label><select id="replace-position"></select><label>New promoter name</label><input id="replacement-name" placeholder="e.g. Kavya Shah" /><label>New mobile number</label><input id="replacement-phone" placeholder="e.g. +91 98765 43210" /><button id="preview-replacement" class="secondary full">Preview change</button><div id="replacement-preview" class="preview-box hidden"></div><button id="confirm-replacement" class="primary full hidden">Confirm replacement</button></div>
+        </div>
+        <section class="card audit"><div class="section-title"><h2>Audit log</h2><span>Latest events</span></div><div id="audit-log"></div></section>
+      </section>
+    </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
