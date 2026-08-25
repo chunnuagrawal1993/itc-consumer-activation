@@ -1,274 +1,190 @@
-// State Variables
-let mediaRecorder;
-let recordedChunks = [];
-let recognition;
-let finalTranscript = "";
-let currentUserRole = null;
+// Video file preview handler
+const videoInput = document.getElementById('video-input');
+const videoPlayer = document.getElementById('video-player');
+const videoPlaceholder = document.getElementById('video-placeholder');
 
-// -------------------------------------------------------------
-// 1. AUTH & ROLE ROUTING
-// -------------------------------------------------------------
-function loginAs(role) {
-  currentUserRole = role;
-  document.getElementById("auth-screen").classList.remove("active");
-  document.getElementById("user-session-bar").style.display = "flex";
-  
-  if (role === "promoter") {
-    document.getElementById("active-user-badge").textContent = "Role: Store Promoter";
-    document.getElementById("promoter-view").classList.add("active");
-    document.getElementById("admin-view").classList.remove("active");
-  } else if (role === "admin") {
-    document.getElementById("active-user-badge").textContent = "Role: Operations Admin";
-    document.getElementById("admin-view").classList.add("active");
-    document.getElementById("promoter-view").classList.remove("active");
-    loadAdminDashboard();
-  }
-}
+let selectedVideoBase64 = null;
+let selectedVideoType = null;
 
-function showAdminPasswordPrompt() {
-  const pinBox = document.getElementById("admin-pin-box");
-  pinBox.style.display = pinBox.style.display === "none" ? "block" : "none";
-}
+videoInput.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    selectedVideoType = file.type || 'video/mp4';
+    const fileURL = URL.createObjectURL(file);
+    videoPlayer.src = fileURL;
+    videoPlayer.style.display = 'block';
+    videoPlaceholder.style.display = 'none';
 
-function validateAdminLogin() {
-  const enteredPass = document.getElementById("admin-password").value.trim();
-  // Default operations admin passcode
-  if (enteredPass === "itcadmin" || enteredPass === "") {
-    loginAs("admin");
-  } else {
-    alert("Incorrect admin password. (Default: itcadmin)");
-  }
-}
-
-function handleLogout() {
-  stopPromoterSession();
-  currentUserRole = null;
-  document.getElementById("user-session-bar").style.display = "none";
-  document.getElementById("promoter-view").classList.remove("active");
-  document.getElementById("admin-view").classList.remove("active");
-  document.getElementById("admin-pin-box").style.display = "none";
-  document.getElementById("admin-password").value = "";
-  document.getElementById("auth-screen").classList.add("active");
-}
-
-// -------------------------------------------------------------
-// 2. LIVE SPEECH-TO-TEXT & VIDEO RECORDING
-// -------------------------------------------------------------
-async function startPromoterSession() {
-  finalTranscript = "";
-  recordedChunks = [];
-  const transcriptBox = document.getElementById("live-transcript-box");
-  const selectedLang = document.getElementById("stt-language").value;
-  transcriptBox.innerHTML = "<em>Listening... Speak your brand pitch now.</em>";
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById("camera-preview").srcObject = stream;
-    document.getElementById("recording-badge").style.display = "block";
-
-    // Start video recording
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunks.push(e.data);
+    // Convert to base64 for Gemini API submission
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      selectedVideoBase64 = evt.target.result.split(',')[1];
     };
-    mediaRecorder.start();
-
-    // Start Web Speech Recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      transcriptBox.innerHTML = "<span style='color:red;'>Speech Recognition not supported in this browser. Please use Chrome or Edge.</span>";
-    } else {
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = selectedLang;
-
-      recognition.onresult = (event) => {
-        let interim = "";
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + " ";
-          } else {
-            interim += event.results[i][0].transcript;
-          }
-        }
-        transcriptBox.innerHTML = `<strong>${finalTranscript}</strong> <span style="color:#6c757d;">${interim}</span>`;
-        transcriptBox.scrollTop = transcriptBox.scrollHeight;
-      };
-
-      recognition.onerror = (err) => {
-        console.warn("STT Error:", err);
-      };
-
-      recognition.start();
-    }
-
-    document.getElementById("start-record-btn").disabled = true;
-    document.getElementById("stop-record-btn").disabled = false;
-
-  } catch (err) {
-    alert("Camera/Mic Permission Error: " + err.message);
+    reader.readAsDataURL(file);
+  } else {
+    videoPlayer.style.display = 'none';
+    videoPlaceholder.style.display = 'block';
+    selectedVideoBase64 = null;
   }
-}
+});
 
-function stopPromoterSession() {
-  if (recognition) {
-    try { recognition.stop(); } catch(e){}
-  }
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
-
-  const badge = document.getElementById("recording-badge");
-  if (badge) badge.style.display = "none";
-
-  const preview = document.getElementById("camera-preview");
-  if (preview && preview.srcObject) {
-    preview.srcObject.getTracks().forEach(t => t.stop());
-  }
-
-  const startBtn = document.getElementById("start-record-btn");
-  const stopBtn = document.getElementById("stop-record-btn");
-  if (startBtn) startBtn.disabled = false;
-  if (stopBtn) stopBtn.disabled = true;
-}
-
-// -------------------------------------------------------------
-// 3. AI EVALUATION & DATABASE STORAGE
-// -------------------------------------------------------------
-async function submitForAssessment() {
-  const apiKey = document.getElementById("gemini-api-key").value.trim();
-  const name = document.getElementById("candidate-name").value.trim();
-  const store = document.getElementById("store-name").value.trim();
-  const masterSpiel = document.getElementById("master-spiel").value.trim();
+// Run AI Screening Pipeline
+async function runAIScreening() {
+  const apiKey = document.getElementById('gemini-api-key').value.trim();
+  const name = document.getElementById('candidate-name').value.trim();
+  const store = document.getElementById('store-location').value.trim();
+  const masterSpiel = document.getElementById('master-spiel').value.trim();
+  const questions = document.getElementById('interview-questions').value.trim();
 
   if (!apiKey) {
-    alert("Please enter a Gemini API Key.");
+    alert('Please enter your Gemini API Key.');
     return;
   }
-  if (!finalTranscript.trim()) {
-    alert("No speech transcript recorded. Please record your pitch first.");
+  if (!selectedVideoBase64) {
+    alert('Please select and upload a video recording first.');
     return;
   }
 
-  const evalCard = document.getElementById("evaluation-card");
-  const evalContent = document.getElementById("eval-content");
-  evalCard.style.display = "block";
-  evalContent.innerHTML = "<p>⏳ AI evaluating pitch transcript, spiel accuracy, and competencies...</p>";
+  const resultCard = document.getElementById('result-card');
+  const resultBody = document.getElementById('result-body');
+  const verdictPill = document.getElementById('verdict-pill');
+
+  resultCard.style.display = 'block';
+  verdictPill.textContent = 'Evaluating...';
+  verdictPill.className = 'badge-verdict';
+  resultBody.innerHTML = '<p style="color:#64748b; text-align:center; padding: 20px;">⏳ Analyzing candidate video, brand spiel delivery, eye-gaze posture, and competency scores...</p>';
 
   const prompt = `
-  You are an operations talent assessor evaluating a retail promoter pitch.
-  Candidate Name: ${name}
-  Target Master Spiel: "${masterSpiel}"
-  Candidate Delivered Transcript: "${finalTranscript}"
+  You are an expert operations talent assessor evaluating a retail promoter candidate for modern trade stores in India (Reliance, Lulu, etc.).
 
-  Evaluate the candidate and return valid JSON with this exact schema:
+  Promoter Name: ${name}
+  Store Location: ${store}
+  Master Brand Spiel Reference: "${masterSpiel}"
+  Pre-defined Questions to Check: "${questions}"
+
+  Evaluate the video submission across:
+  1. Candidate Profile: Extract Age, Years of Experience, Past Brands.
+  2. Anti-Cheating / Gaze Check: Detect if promoter is reading from a paper/screen or delivering naturally from memory.
+  3. Brand Spiel Delivery: Check accuracy against master spiel across regional languages (Hindi, Tamil, Telugu, English, etc.).
+  4. Product Knowledge & Pitching: Rate on a 1 to 5 scale.
+
+  Return ONLY valid JSON matching this schema:
   {
-    "detected_language": "Hindi/English/Tamil/etc.",
+    "candidate": {
+      "name": "${name}",
+      "age": "Age or approximate",
+      "experience": "Years of experience",
+      "past_brands": ["brand1", "brand2"]
+    },
+    "detected_language": "Hindi / English / etc.",
     "brand_spiel_accuracy_score": 4,
     "communication_score": 4,
     "product_knowledge_score": 5,
     "selling_pitch_score": 4,
     "overall_rating": 4.25,
     "is_reading": false,
-    "reading_explanation": "Natural cadence and pacing observed.",
+    "reading_explanation": "Natural eye contact maintained.",
     "recommendation": "Recommended",
-    "strengths": ["Clear pronunciation", "Covered key USP and promo offer"],
-    "improvements": ["Can maintain a more upbeat greeting hook"]
+    "strengths": ["Clear voice", "Accurate promo recall"],
+    "areas_of_improvement": ["Can improve greeting confidence"],
+    "summary": "Brief summary of performance"
   }
   `;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: selectedVideoType,
+                  data: selectedVideoBase64
+                }
+              },
+              { text: prompt }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2
+        }
       })
     });
 
     const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message);
+    }
+
     const evalData = JSON.parse(data.candidates[0].content.parts[0].text);
 
-    // Render result card
-    evalContent.innerHTML = `
-      <h4>Overall Verdict: <strong>${evalData.recommendation}</strong> (${evalData.overall_rating} / 5.0)</h4>
-      <p><strong>Spiel Accuracy:</strong> ${evalData.brand_spiel_accuracy_score}/5 | <strong>Communication:</strong> ${evalData.communication_score}/5 | <strong>Product Knowledge:</strong> ${evalData.product_knowledge_score}/5</p>
-      <p><strong>Reading / Script Check:</strong> ${evalData.reading_explanation}</p>
-    `;
+    // Update Verdict Pill
+    const rec = evalData.recommendation || 'Recommended';
+    verdictPill.textContent = `${rec} (${evalData.overall_rating}/5.0)`;
+    if (rec.toLowerCase().includes('recommend')) {
+      verdictPill.className = 'badge-verdict recommended';
+    } else if (rec.toLowerCase().includes('retrain')) {
+      verdictPill.className = 'badge-verdict retrain';
+    } else {
+      verdictPill.className = 'badge-verdict rejected';
+    }
 
-    // Persist to LocalStorage for Admin Dashboard
-    const submissionRecord = {
-      id: Date.now(),
-      timestamp: new Date().toLocaleString(),
-      name,
-      store,
-      transcript: finalTranscript,
-      evaluation: evalData,
-      status: evalData.recommendation === "Recommended" ? "APPROVED" : "FLAGGED"
-    };
-
-    const existing = JSON.parse(localStorage.getItem("itc_promoter_submissions") || "[]");
-    existing.unshift(submissionRecord);
-    localStorage.setItem("itc_promoter_submissions", JSON.stringify(existing));
-
-    alert("✅ Assessment saved to Operations Admin Dashboard!");
-
-  } catch (err) {
-    evalContent.innerHTML = `<span style="color:red;">Evaluation Error: ${err.message}</span>`;
-  }
-}
-
-// -------------------------------------------------------------
-// 4. OPERATIONS ADMIN DASHBOARD
-// -------------------------------------------------------------
-function loadAdminDashboard() {
-  const container = document.getElementById("admin-submissions-list");
-  const kpiContainer = document.getElementById("admin-kpi-summary");
-  const submissions = JSON.parse(localStorage.getItem("itc_promoter_submissions") || "[]");
-
-  if (submissions.length === 0) {
-    kpiContainer.innerHTML = "";
-    container.innerHTML = "<p style='color:#6c757d; margin-top:10px;'>No candidate submissions recorded yet.</p>";
-    return;
-  }
-
-  const total = submissions.length;
-  const approved = submissions.filter(s => s.status === "APPROVED").length;
-  const flagged = submissions.filter(s => s.status === "FLAGGED").length;
-
-  kpiContainer.innerHTML = `
-    <div class="kpi-card"><h4>Total Screened</h4><p>${total}</p></div>
-    <div class="kpi-card"><h4>Approved</h4><p style="color:#28a745;">${approved}</p></div>
-    <div class="kpi-card"><h4>Flagged / Retrain</h4><p style="color:#dc3545;">${flagged}</p></div>
-  `;
-
-  container.innerHTML = submissions.map(sub => `
-    <div class="submission-card ${sub.status.toLowerCase()}">
-      <div class="submission-header">
-        <strong>${sub.name}</strong> - <span>${sub.store}</span>
-        <span class="status-badge ${sub.status.toLowerCase()}">${sub.status}</span>
-      </div>
-      <div style="font-size:12px; color:#6c757d; margin: 4px 0 10px;">
-        Recorded: ${sub.timestamp} | Rating: ${sub.evaluation.overall_rating}/5.0 (${sub.evaluation.recommendation})
-      </div>
-      
-      <div class="admin-grid">
-        <div>
-          <h5 style="margin-bottom:4px;">📜 Stored Speech Transcript:</h5>
-          <div class="transcript-log">${sub.transcript}</div>
+    // Render Clean Assessment Dashboard
+    resultBody.innerHTML = `
+      <div class="kpi-row">
+        <div class="kpi-stat">
+          <span>Brand Spiel Accuracy</span>
+          <strong>${evalData.brand_spiel_accuracy_score} / 5</strong>
         </div>
+        <div class="kpi-stat">
+          <span>Communication</span>
+          <strong>${evalData.communication_score} / 5</strong>
+        </div>
+        <div class="kpi-stat">
+          <span>Product Knowledge</span>
+          <strong>${evalData.product_knowledge_score} / 5</strong>
+        </div>
+        <div class="kpi-stat">
+          <span>Selling Pitch</span>
+          <strong>${evalData.selling_pitch_score} / 5</strong>
+        </div>
+      </div>
+
+      <div class="details-grid">
         <div>
-          <h5 style="margin-bottom:4px;">🎯 Evaluation Scores:</h5>
-          <ul style="font-size:13px; line-height:1.5; padding-left:18px;">
-            <li>Spiel Accuracy: ${sub.evaluation.brand_spiel_accuracy_score}/5</li>
-            <li>Communication: ${sub.evaluation.communication_score}/5</li>
-            <li>Product Knowledge: ${sub.evaluation.product_knowledge_score}/5</li>
-            <li>Script Check: ${sub.evaluation.reading_explanation}</li>
+          <h4 style="font-size:13px; color:#002e6e; margin-bottom:6px;">Candidate Profile</h4>
+          <p style="font-size:13px; line-height:1.6;">
+            <strong>Language:</strong> ${evalData.detected_language}<br>
+            <strong>Experience:</strong> ${evalData.candidate.experience || 'N/A'}<br>
+            <strong>Past Brands:</strong> ${(evalData.candidate.past_brands || []).join(', ') || 'N/A'}
+          </p>
+
+          <h4 style="font-size:13px; color:#002e6e; margin:10px 0 4px;">Anti-Cheating / Gaze Verification</h4>
+          <p style="font-size:13px; color:${evalData.is_reading ? '#dc2626' : '#16a34a'};">
+            ${evalData.is_reading ? '⚠️ Flagged for reading off screen/notes' : '✅ Natural memory delivery'}: ${evalData.reading_explanation}
+          </p>
+        </div>
+
+        <div>
+          <h4 style="font-size:13px; color:#002e6e; margin-bottom:6px;">Strengths</h4>
+          <ul style="font-size:13px; padding-left:18px; line-height:1.5;">
+            ${(evalData.strengths || []).map(s => `<li>${s}</li>`).join('')}
+          </ul>
+
+          <h4 style="font-size:13px; color:#002e6e; margin:10px 0 4px;">Areas for Improvement</h4>
+          <ul style="font-size:13px; padding-left:18px; line-height:1.5;">
+            ${(evalData.areas_of_improvement || []).map(i => `<li>${i}</li>`).join('')}
           </ul>
         </div>
       </div>
-    </div>
-  `).join("");
+    `;
+
+  } catch (err) {
+    resultBody.innerHTML = `<p style="color:#dc2626; padding:10px;">Evaluation Error: ${err.message}</p>`;
+  }
 }
