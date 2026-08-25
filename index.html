@@ -7,28 +7,71 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+  <!-- TOP NAVIGATION BAR -->
   <header class="navbar">
-    <img src="itc-logo.jpg" alt="ITC Logo" class="logo">
-    <h2>Promoter Assessment Portal</h2>
-    <div class="nav-tabs">
-      <button id="tab-promoter-btn" class="active" onclick="switchView('promoter')">Promoter Session</button>
-      <button id="tab-admin-btn" onclick="switchView('admin')">Operations Admin</button>
+    <div class="nav-brand">
+      <img src="itc-logo.jpg" alt="ITC Logo" class="brand-logo">
+      <span class="portal-title">Promoter Assessment Portal</span>
+    </div>
+    <div id="user-session-bar" class="session-actions" style="display: none;">
+      <span id="active-user-badge" class="badge-role"></span>
+      <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
     </div>
   </header>
 
-  <main class="container">
-    <!-- PROMOTER VIEW -->
-    <section id="promoter-view" class="view-panel active">
-      <div class="grid-2">
+  <!-- 1. LOGIN / ROLE SELECTION GATE -->
+  <section id="auth-screen" class="view-panel active">
+    <div class="auth-card">
+      <div class="auth-logo-box">
+        <img src="itc-logo.jpg" alt="ITC Logo" class="auth-logo">
+      </div>
+      <h2>Select Portal Access</h2>
+      <p class="auth-desc">Choose your role to proceed with promoter evaluation or administrative review.</p>
+      
+      <div class="auth-options">
+        <button class="auth-btn promoter-btn" onclick="loginAs('promoter')">
+          <span class="icon">📹</span>
+          <div>
+            <strong>Promoter Pitch Session</strong>
+            <small>Record brand spiel & Q&A</small>
+          </div>
+        </button>
+
+        <button class="auth-btn admin-btn" onclick="showAdminPasswordPrompt()">
+          <span class="icon">📊</span>
+          <div>
+            <strong>Operations Admin</strong>
+            <small>Review recordings & scores</small>
+          </div>
+        </button>
+      </div>
+
+      <!-- Optional Admin PIN verification -->
+      <div id="admin-pin-box" style="display: none; margin-top: 15px;">
+        <label>Enter Admin Password:</label>
+        <input type="password" id="admin-password" placeholder="Enter admin password (Default: itcadmin)">
+        <button class="btn btn-primary" style="margin-top: 8px; width: 100%;" onclick="validateAdminLogin()">Verify & Enter</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. PROMOTER SCREENING ROOM -->
+  <section id="promoter-view" class="view-panel">
+    <main class="container">
+      <div class="grid-layout">
+        
+        <!-- Left Column: Details & Golden Pitch -->
         <div class="card">
-          <h3>1. Promoter Details & Script</h3>
-          <label>Full Name</label>
-          <input type="text" id="candidate-name" placeholder="Enter full name" value="Rohan Sharma">
+          <h3>1. Promoter Setup & Script</h3>
+          
+          <label>Candidate Full Name</label>
+          <input type="text" id="candidate-name" placeholder="Enter promoter name" value="Rohan Sharma">
 
-          <label>Store & City</label>
-          <input type="text" id="store-name" placeholder="e.g., Reliance Smart Bazaar - Andheri, Mumbai">
+          <label>Store Location & City</label>
+          <input type="text" id="store-name" placeholder="e.g., Reliance Smart Bazaar - Andheri, Mumbai" value="Reliance Retail - Mumbai">
 
-          <label>Spoken Language</label>
+          <label>Select Speaking Language</label>
           <select id="stt-language">
             <option value="hi-IN" selected>Hindi (हिंदी)</option>
             <option value="en-IN">English (India)</option>
@@ -40,54 +83,63 @@
           </select>
 
           <label>Master Brand Spiel (Golden Script)</label>
-          <textarea id="master-spiel" rows="3">Namaste! Kya aapne Sunfeast Dark Fantasy try kiya hai? Isme hai crispy chocolate cookie bahar se aur andar molten choco lava jo muh mein melt ho jata hai. Aaj Reliance mein Buy 2 Get 1 Free offer chal raha hai!</textarea>
+          <textarea id="master-spiel" rows="4">Namaste! Kya aapne Sunfeast Dark Fantasy try kiya hai? Isme hai crispy chocolate cookie bahar se aur andar molten choco lava jo muh mein melt ho jata hai. Aaj Reliance mein Buy 2 Get 1 Free offer chal raha hai, zaroor try kijiye!</textarea>
 
           <label>Gemini API Key</label>
-          <input type="password" id="gemini-api-key" placeholder="Enter Gemini API Key">
+          <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key">
         </div>
 
+        <!-- Right Column: Live Camera & Streaming Transcription -->
         <div class="card">
-          <h3>2. Live Camera & Real-Time Transcription</h3>
-          <div class="video-wrapper">
-            <div id="recording-badge" class="badge-rec">🔴 REC - Listening...</div>
+          <h3>2. Pitch Recording & Live Teleprompter</h3>
+          
+          <div class="video-container">
+            <div id="recording-badge" class="rec-badge">🔴 REC (Listening...)</div>
             <video id="camera-preview" autoplay muted playsinline></video>
           </div>
 
-          <div class="btn-group">
-            <button id="start-record-btn" class="btn btn-start" onclick="startPromoterSession()">▶ Start Recording & Live STT</button>
-            <button id="stop-record-btn" class="btn btn-stop" onclick="stopPromoterSession()" disabled>⏹ Stop Recording</button>
+          <div class="controls-row">
+            <button id="start-record-btn" class="btn btn-success" onclick="startPromoterSession()">▶ Start Recording</button>
+            <button id="stop-record-btn" class="btn btn-danger" onclick="stopPromoterSession()" disabled>⏹ Stop Recording</button>
           </div>
 
-          <label style="margin-top: 12px;">Live Streaming Transcript (Visible to Promoter):</label>
-          <div id="live-transcript-box" class="transcript-display">
-            <em>Your live speech transcript will appear here in real time...</em>
+          <label style="margin-top: 14px;">Live Speech Transcription (Streaming real-time):</label>
+          <div id="live-transcript-box" class="transcript-box">
+            <em>Live speech transcript will stream here in real time as you speak...</em>
           </div>
 
-          <button id="submit-eval-btn" class="btn btn-primary" onclick="submitForAssessment()" style="margin-top: 15px; width: 100%;">
-            🚀 Submit Pitch for AI Screening
+          <button id="submit-eval-btn" class="btn btn-primary btn-block" onclick="submitForAssessment()">
+            🚀 Submit for AI Evaluation
           </button>
         </div>
+
       </div>
 
-      <!-- Evaluation Result Feedback -->
+      <!-- AI Evaluation Output Card -->
       <div id="evaluation-card" class="card result-card" style="display: none; margin-top: 20px;">
-        <h3>AI Screening Verdict</h3>
+        <h3>AI Screening Assessment Report</h3>
         <div id="eval-content"></div>
       </div>
-    </section>
+    </main>
+  </section>
 
-    <!-- OPERATIONS ADMIN VIEW -->
-    <section id="admin-view" class="view-panel">
+  <!-- 3. OPERATIONS ADMIN DASHBOARD -->
+  <section id="admin-view" class="view-panel">
+    <main class="container">
       <div class="card">
-        <div class="admin-header">
-          <h3>Operations Admin Dashboard</h3>
-          <button class="btn btn-outline" onclick="loadAdminDashboard()">🔄 Refresh Submissions</button>
+        <div class="admin-top-bar">
+          <div>
+            <h2>Operations Review Dashboard</h2>
+            <p class="subtitle">Inspect candidate speech logs, gaze tracking checks, and AI competency ratings.</p>
+          </div>
+          <button class="btn btn-outline" onclick="loadAdminDashboard()">🔄 Refresh</button>
         </div>
-        <div id="admin-kpi-summary" class="kpi-grid"></div>
-        <div id="admin-submissions-list" class="submissions-container"></div>
+
+        <div id="admin-kpi-summary" class="kpi-row"></div>
+        <div id="admin-submissions-list" class="submissions-list"></div>
       </div>
-    </section>
-  </main>
+    </main>
+  </section>
 
   <script src="app.js"></script>
 </body>
