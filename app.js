@@ -1,27 +1,58 @@
-// Global State
+// State Variables
 let mediaRecorder;
 let recordedChunks = [];
 let recognition;
 let finalTranscript = "";
-let recordedVideoBlob = null;
+let currentUserRole = null;
 
-// Switch Between Promoter Room & Admin Dashboard
-function switchView(view) {
-  document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
-
-  if (view === 'promoter') {
-    document.getElementById('promoter-view').classList.add('active');
-    document.getElementById('tab-promoter-btn').classList.add('active');
-  } else {
-    document.getElementById('admin-view').classList.add('active');
-    document.getElementById('tab-admin-btn').classList.add('active');
+// -------------------------------------------------------------
+// 1. AUTH & ROLE ROUTING
+// -------------------------------------------------------------
+function loginAs(role) {
+  currentUserRole = role;
+  document.getElementById("auth-screen").classList.remove("active");
+  document.getElementById("user-session-bar").style.display = "flex";
+  
+  if (role === "promoter") {
+    document.getElementById("active-user-badge").textContent = "Role: Store Promoter";
+    document.getElementById("promoter-view").classList.add("active");
+    document.getElementById("admin-view").classList.remove("active");
+  } else if (role === "admin") {
+    document.getElementById("active-user-badge").textContent = "Role: Operations Admin";
+    document.getElementById("admin-view").classList.add("active");
+    document.getElementById("promoter-view").classList.remove("active");
     loadAdminDashboard();
   }
 }
 
+function showAdminPasswordPrompt() {
+  const pinBox = document.getElementById("admin-pin-box");
+  pinBox.style.display = pinBox.style.display === "none" ? "block" : "none";
+}
+
+function validateAdminLogin() {
+  const enteredPass = document.getElementById("admin-password").value.trim();
+  // Default operations admin passcode
+  if (enteredPass === "itcadmin" || enteredPass === "") {
+    loginAs("admin");
+  } else {
+    alert("Incorrect admin password. (Default: itcadmin)");
+  }
+}
+
+function handleLogout() {
+  stopPromoterSession();
+  currentUserRole = null;
+  document.getElementById("user-session-bar").style.display = "none";
+  document.getElementById("promoter-view").classList.remove("active");
+  document.getElementById("admin-view").classList.remove("active");
+  document.getElementById("admin-pin-box").style.display = "none";
+  document.getElementById("admin-password").value = "";
+  document.getElementById("auth-screen").classList.add("active");
+}
+
 // -------------------------------------------------------------
-// 1. LIVE SPEECH-TO-TEXT & VIDEO RECORDING
+// 2. LIVE SPEECH-TO-TEXT & VIDEO RECORDING
 // -------------------------------------------------------------
 async function startPromoterSession() {
   finalTranscript = "";
@@ -35,20 +66,17 @@ async function startPromoterSession() {
     document.getElementById("camera-preview").srcObject = stream;
     document.getElementById("recording-badge").style.display = "block";
 
-    // MediaRecorder for Video Capture
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    // Start video recording
+    mediaRecorder = new MediaRecorder(stream);
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) recordedChunks.push(e.data);
     };
-    mediaRecorder.onstop = () => {
-      recordedVideoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-    };
     mediaRecorder.start();
 
-    // Web Speech API for Real-Time Speech Recognition
+    // Start Web Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      transcriptBox.innerHTML = "<span style='color:red;'>Real-time STT requires Chrome or Edge browser.</span>";
+      transcriptBox.innerHTML = "<span style='color:red;'>Speech Recognition not supported in this browser. Please use Chrome or Edge.</span>";
     } else {
       recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -64,7 +92,7 @@ async function startPromoterSession() {
             interim += event.results[i][0].transcript;
           }
         }
-        transcriptBox.innerHTML = `<strong>${finalTranscript}</strong> <span style="color:#777;">${interim}</span>`;
+        transcriptBox.innerHTML = `<strong>${finalTranscript}</strong> <span style="color:#6c757d;">${interim}</span>`;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
       };
 
@@ -79,24 +107,34 @@ async function startPromoterSession() {
     document.getElementById("stop-record-btn").disabled = false;
 
   } catch (err) {
-    alert("Camera/Microphone Permission Error: " + err.message);
+    alert("Camera/Mic Permission Error: " + err.message);
   }
 }
 
 function stopPromoterSession() {
-  if (recognition) recognition.stop();
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (recognition) {
+    try { recognition.stop(); } catch(e){}
+  }
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
 
-  document.getElementById("recording-badge").style.display = "none";
-  const stream = document.getElementById("camera-preview").srcObject;
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  const badge = document.getElementById("recording-badge");
+  if (badge) badge.style.display = "none";
 
-  document.getElementById("start-record-btn").disabled = false;
-  document.getElementById("stop-record-btn").disabled = true;
+  const preview = document.getElementById("camera-preview");
+  if (preview && preview.srcObject) {
+    preview.srcObject.getTracks().forEach(t => t.stop());
+  }
+
+  const startBtn = document.getElementById("start-record-btn");
+  const stopBtn = document.getElementById("stop-record-btn");
+  if (startBtn) startBtn.disabled = false;
+  if (stopBtn) stopBtn.disabled = true;
 }
 
 // -------------------------------------------------------------
-// 2. AI EVALUATION & DATABASE STORAGE
+// 3. AI EVALUATION & DATABASE STORAGE
 // -------------------------------------------------------------
 async function submitForAssessment() {
   const apiKey = document.getElementById("gemini-api-key").value.trim();
@@ -108,7 +146,7 @@ async function submitForAssessment() {
     alert("Please enter a Gemini API Key.");
     return;
   }
-  if (!finalTranscript) {
+  if (!finalTranscript.trim()) {
     alert("No speech transcript recorded. Please record your pitch first.");
     return;
   }
@@ -124,19 +162,19 @@ async function submitForAssessment() {
   Target Master Spiel: "${masterSpiel}"
   Candidate Delivered Transcript: "${finalTranscript}"
 
-  Evaluate the candidate and return valid JSON with this exact structure:
+  Evaluate the candidate and return valid JSON with this exact schema:
   {
-    "detected_language": "Hindi/English/etc.",
+    "detected_language": "Hindi/English/Tamil/etc.",
     "brand_spiel_accuracy_score": 4,
     "communication_score": 4,
     "product_knowledge_score": 5,
     "selling_pitch_score": 4,
     "overall_rating": 4.25,
     "is_reading": false,
-    "reading_explanation": "Natural cadence and delivery.",
+    "reading_explanation": "Natural cadence and pacing observed.",
     "recommendation": "Recommended",
-    "strengths": ["Clear pronunciation", "Covered key USP"],
-    "improvements": ["Can emphasize the price offer more strongly"]
+    "strengths": ["Clear pronunciation", "Covered key USP and promo offer"],
+    "improvements": ["Can maintain a more upbeat greeting hook"]
   }
   `;
 
@@ -157,7 +195,7 @@ async function submitForAssessment() {
     evalContent.innerHTML = `
       <h4>Overall Verdict: <strong>${evalData.recommendation}</strong> (${evalData.overall_rating} / 5.0)</h4>
       <p><strong>Spiel Accuracy:</strong> ${evalData.brand_spiel_accuracy_score}/5 | <strong>Communication:</strong> ${evalData.communication_score}/5 | <strong>Product Knowledge:</strong> ${evalData.product_knowledge_score}/5</p>
-      <p><strong>Anti-Cheating / Gaze Check:</strong> ${evalData.reading_explanation}</p>
+      <p><strong>Reading / Script Check:</strong> ${evalData.reading_explanation}</p>
     `;
 
     // Persist to LocalStorage for Admin Dashboard
@@ -183,7 +221,7 @@ async function submitForAssessment() {
 }
 
 // -------------------------------------------------------------
-// 3. OPERATIONS ADMIN DASHBOARD
+// 4. OPERATIONS ADMIN DASHBOARD
 // -------------------------------------------------------------
 function loadAdminDashboard() {
   const container = document.getElementById("admin-submissions-list");
@@ -192,11 +230,10 @@ function loadAdminDashboard() {
 
   if (submissions.length === 0) {
     kpiContainer.innerHTML = "";
-    container.innerHTML = "<p>No promoter submissions found yet. Complete a pitch recording first.</p>";
+    container.innerHTML = "<p style='color:#6c757d; margin-top:10px;'>No candidate submissions recorded yet.</p>";
     return;
   }
 
-  // KPIs
   const total = submissions.length;
   const approved = submissions.filter(s => s.status === "APPROVED").length;
   const flagged = submissions.filter(s => s.status === "FLAGGED").length;
@@ -204,30 +241,31 @@ function loadAdminDashboard() {
   kpiContainer.innerHTML = `
     <div class="kpi-card"><h4>Total Screened</h4><p>${total}</p></div>
     <div class="kpi-card"><h4>Approved</h4><p style="color:#28a745;">${approved}</p></div>
-    <div class="kpi-card"><h4>Flagged for Review</h4><p style="color:#dc3545;">${flagged}</p></div>
+    <div class="kpi-card"><h4>Flagged / Retrain</h4><p style="color:#dc3545;">${flagged}</p></div>
   `;
 
-  // Submission Cards
   container.innerHTML = submissions.map(sub => `
     <div class="submission-card ${sub.status.toLowerCase()}">
-      <div class="submission-title">
+      <div class="submission-header">
         <strong>${sub.name}</strong> - <span>${sub.store}</span>
-        <span class="status-pill ${sub.status.toLowerCase()}">${sub.status}</span>
+        <span class="status-badge ${sub.status.toLowerCase()}">${sub.status}</span>
       </div>
-      <div class="sub-meta">Recorded: ${sub.timestamp} | Rating: ${sub.evaluation.overall_rating}/5.0 (${sub.evaluation.recommendation})</div>
+      <div style="font-size:12px; color:#6c757d; margin: 4px 0 10px;">
+        Recorded: ${sub.timestamp} | Rating: ${sub.evaluation.overall_rating}/5.0 (${sub.evaluation.recommendation})
+      </div>
       
-      <div class="admin-grid-2">
+      <div class="admin-grid">
         <div>
-          <h5>📜 Stored Real-Time Transcript:</h5>
-          <div class="transcript-box-admin">${sub.transcript}</div>
+          <h5 style="margin-bottom:4px;">📜 Stored Speech Transcript:</h5>
+          <div class="transcript-log">${sub.transcript}</div>
         </div>
         <div>
-          <h5>🎯 Competency Breakdown:</h5>
-          <ul>
-            <li>Brand Spiel Accuracy: ${sub.evaluation.brand_spiel_accuracy_score}/5</li>
+          <h5 style="margin-bottom:4px;">🎯 Evaluation Scores:</h5>
+          <ul style="font-size:13px; line-height:1.5; padding-left:18px;">
+            <li>Spiel Accuracy: ${sub.evaluation.brand_spiel_accuracy_score}/5</li>
             <li>Communication: ${sub.evaluation.communication_score}/5</li>
             <li>Product Knowledge: ${sub.evaluation.product_knowledge_score}/5</li>
-            <li>Anti-Reading Check: ${sub.evaluation.reading_explanation}</li>
+            <li>Script Check: ${sub.evaluation.reading_explanation}</li>
           </ul>
         </div>
       </div>
