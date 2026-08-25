@@ -1,71 +1,236 @@
-const seed = { settings:{start:'10:00',end:'21:00',recipient:'area.managers@company.com'}, promoters:[
-  {id:'PP-1001',name:'Asha Verma',phone:'+91 98765 41001',store:'Reliance Smart, Andheri',city:'Mumbai',status:'submitted',score:86,assessmentResult:{brand:'Aashirvaad',language:'Hindi',total:86,sampleVideo:'assets/sample-promoter-recording.mp4',transcript:'यह एक डेमो ट्रांसक्रिप्ट है। उम्मीदवार ने ब्रांड, गुणवत्ता और ग्राहक लाभों के बारे में स्पष्ट रूप से बताया।',rows:[['Brand spiel delivery',27,30,'Brand name, key benefit and a complete spiel were detected.'],['Product knowledge',22,25,'Multiple Aashirvaad product-rubric terms were matched.'],['Selling / pitching',17,20,'Customer-benefit and value language were detected.'],['Communication',10,15,'Clear, sufficiently detailed spoken response.'],['Completion',10,10,'All five questions were completed in one continuous take.']]}},
-  {id:'PP-1002',name:'Ravi Kumar',phone:'+91 98765 41002',store:'Lulu Hypermarket, Edappally',city:'Kochi',status:'pending',score:null},
-  {id:'PP-1003',name:'Meera Patel',phone:'+91 98765 41003',store:'Reliance Fresh, Vastrapur',city:'Ahmedabad',status:'pending',score:null},
-  {id:'PP-1004',name:'Arjun Singh',phone:'+91 98765 41004',store:'Reliance Smart Bazaar, Gomti Nagar',city:'Lucknow',status:'incomplete',score:null}
-], audit:[{text:'Daily question set activated for 4 promoter–store positions.',time:'Today, 09:55'}]};
-const brands=['Aashirvaad','Sunfeast','Bingo!','YiPPee!','Savlon','Classmate'];
-const languages={
-  English:['Please introduce yourself and name the {brand} product you represent today.','What are three key benefits of {brand}?','How would you explain a {brand} benefit to a shopper in simple language?','A shopper says {brand} is expensive. How would you respond?','Please deliver your 30-second {brand} brand spiel without reading from a screen.'],
-  Hindi:['कृपया अपना परिचय दें और बताएं कि आप आज {brand} के किस उत्पाद का प्रतिनिधित्व कर रहे हैं।','{brand} के तीन मुख्य लाभ क्या हैं?','आप किसी ग्राहक को {brand} का लाभ सरल भाषा में कैसे बताएंगे?','यदि ग्राहक कहे कि {brand} महंगा है, तो आप क्या उत्तर देंगे?','कृपया बिना स्क्रीन देखे {brand} का 30 सेकंड का ब्रांड स्पील बोलें।'],
-  Marathi:['कृपया तुमची ओळख द्या आणि आज तुम्ही {brand} च्या कोणत्या उत्पादनाचे प्रतिनिधित्व करत आहात ते सांगा.','{brand} चे तीन प्रमुख फायदे कोणते आहेत?','तुम्ही ग्राहकाला {brand} चा फायदा सोप्या भाषेत कसा समजावून सांगाल?','ग्राहकाने {brand} महाग आहे असे म्हटल्यास तुम्ही काय उत्तर द्याल?','कृपया स्क्रीन न पाहता {brand} चा 30 सेकंदांचा ब्रँड स्पील सादर करा.'],
-  Telugu:['దయచేసి మిమ్మల్ని మీరు పరిచయం చేసుకొని, ఈ రోజు మీరు ప్రాతినిధ్యం వహిస్తున్న {brand} ఉత్పత్తి పేరు చెప్పండి.','{brand} యొక్క మూడు ముఖ్య ప్రయోజనాలు ఏమిటి?','{brand} ప్రయోజనాన్ని వినియోగదారునికి సులభమైన భాషలో ఎలా వివరిస్తారు?','{brand} ఖరీదైనదని ఒక వినియోగదారుడు అంటే మీరు ఏమి చెబుతారు?','స్క్రీన్ చూడకుండా {brand} కోసం 30 సెకన్ల బ్రాండ్ స్పీల్ ఇవ్వండి.'],
-  Tamil:['தயவுசெய்து உங்களை அறிமுகப்படுத்தி, இன்று நீங்கள் பிரதிநிதித்துவப்படுத்தும் {brand} தயாரிப்பின் பெயரை கூறுங்கள்.','{brand} தயாரிப்பின் மூன்று முக்கிய நன்மைகள் என்ன?','ஒரு வாடிக்கையாளருக்கு {brand} நன்மையை எளிய மொழியில் எவ்வாறு விளக்குவீர்கள்?','{brand} விலை அதிகம் என்று வாடிக்கையாளர் கூறினால் நீங்கள் என்ன பதிலளிப்பீர்கள்?','திரையைப் பார்க்காமல் {brand} க்கான 30 வினாடி பிராண்ட் ஸ்பீல் கூறுங்கள்.'],
-  Kannada:['ದಯವಿಟ್ಟು ನಿಮ್ಮನ್ನು ಪರಿಚಯಿಸಿಕೊಂಡು, ಇಂದು ನೀವು ಪ್ರತಿನಿಧಿಸುತ್ತಿರುವ {brand} ಉತ್ಪನ್ನದ ಹೆಸರನ್ನು ತಿಳಿಸಿ.','{brand} ನ ಮೂರು ಪ್ರಮುಖ ಪ್ರಯೋಜನಗಳು ಯಾವುವು?','{brand} ಪ್ರಯೋಜನವನ್ನು ಗ್ರಾಹಕರಿಗೆ ಸರಳ ಭಾಷೆಯಲ್ಲಿ ಹೇಗೆ ವಿವರಿಸುತ್ತೀರಿ?','{brand} ದುಬಾರಿಯಾಗಿದೆ ಎಂದು ಗ್ರಾಹಕರು ಹೇಳಿದರೆ ನೀವು ಏನು ಉತ್ತರಿಸುತ್ತೀರಿ?','ಸ್ಕ್ರೀನ್ ನೋಡದೆ {brand} ಗಾಗಿ 30 ಸೆಕೆಂಡುಗಳ ಬ್ರ್ಯಾಂಡ್ ಸ್ಪೀಲ್ ನೀಡಿ.'],
-  Gujarati:['કૃપા કરીને તમારો પરિચય આપો અને આજે તમે જે {brand} ઉત્પાદનનું પ્રતિનિધિત્વ કરો છો તેનું નામ જણાવો.','{brand} ના ત્રણ મુખ્ય ફાયદા કયા છે?','તમે ગ્રાહકને {brand} નો ફાયદો સરળ ભાષામાં કેવી રીતે સમજાવશો?','ગ્રાહક કહે કે {brand} મોંઘું છે, તો તમે શું જવાબ આપશો?','સ્ક્રીન જોયા વિના {brand} માટે 30 સેકન્ડનો બ્રાન્ડ સ્પીલ રજૂ કરો.'],
-  Odia:['ଦୟାକରି ନିଜର ପରିଚୟ ଦିଅନ୍ତୁ ଏବଂ ଆଜି ଆପଣ କେଉଁ {brand} ଉତ୍ପାଦକୁ ପ୍ରତିନିଧିତ୍ୱ କରୁଛନ୍ତି କୁହନ୍ତୁ।','{brand} ର ତିନୋଟି ମୁଖ୍ୟ ଲାଭ କ’ଣ?','ଆପଣ ଜଣେ ଗ୍ରାହକଙ୍କୁ {brand} ର ଲାଭ ସହଜ ଭାଷାରେ କିପରି ବୁଝାଇବେ?','ଜଣେ ଗ୍ରାହକ {brand} ମହଙ୍ଗା ବୋଲି କହିଲେ ଆପଣ କ’ଣ ଉତ୍ତର ଦେବେ?','ସ୍କ୍ରିନ୍ ନ ଦେଖି {brand} ପାଇଁ 30 ସେକେଣ୍ଡର ବ୍ରାଣ୍ଡ ସ୍ପିଲ୍ କୁହନ୍ତୁ।'],
-  Bengali:['অনুগ্রহ করে নিজের পরিচয় দিন এবং আজ আপনি যে {brand} পণ্যের প্রতিনিধিত্ব করছেন তার নাম বলুন।','{brand} এর তিনটি প্রধান সুবিধা কী?','একজন ক্রেতাকে আপনি কীভাবে সহজ ভাষায় {brand} এর সুবিধা বোঝাবেন?','ক্রেতা যদি বলেন {brand} দামি, তাহলে আপনি কী উত্তর দেবেন?','স্ক্রিন না দেখে {brand} এর ৩০ সেকেন্ডের ব্র্যান্ড স্পিল বলুন।'],
-  Assamese:['অনুগ্ৰহ কৰি নিজৰ পৰিচয় দিয়ক আৰু আজি আপুনি প্ৰতিনিধিত্ব কৰা {brand} সামগ্ৰীৰ নাম কওক।','{brand} ৰ তিনিটা মুখ্য লাভ কি কি?','আপুনি গ্ৰাহকক {brand} ৰ লাভ সহজ ভাষাত কেনেকৈ বুজাব?','গ্ৰাহকে যদি কয় যে {brand} দামী, তেন্তে আপুনি কি উত্তৰ দিব?','স্ক্ৰীন নোচোৱাকৈ {brand} ৰ ৩০ ছেকেণ্ডৰ ব্ৰেণ্ড স্পীল কওক।']
-};
-let state=load(), stream, recorder, chunks=[], questionIndex=0, interval, startedAt, recognition, transcriptParts=[], currentTranscript='', recordingUrl;
-const languageCodes={English:'en-IN',Hindi:'hi-IN',Marathi:'mr-IN',Telugu:'te-IN',Tamil:'ta-IN',Kannada:'kn-IN',Gujarati:'gu-IN',Odia:'or-IN',Bengali:'bn-IN',Assamese:'as-IN'};
-const brandKeywords={Aashirvaad:['atta','flour','fresh','quality','nutrition'],Sunfeast:['biscuit','cookie','taste','crunchy','snack'],"Bingo!":['chips','snack','flavour','crunchy','taste'],'YiPPee!':['noodles','masala','taste','quick','snack'],Savlon:['hygiene','protection','germs','safe','care'],Classmate:['notebook','paper','quality','writing','student']};
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const auth={username:'itcadmin',password:'ITC@2026'};
-function setLogin(isAuthenticated){$('#login-screen').classList.toggle('hidden',isAuthenticated);$('#app-shell').classList.toggle('hidden',!isAuthenticated)}
-$('#login-form').onsubmit=e=>{e.preventDefault();const valid=$('#username').value===auth.username&&$('#password').value===auth.password;$('#login-error').classList.toggle('hidden',valid);if(!valid){$('#password').select();return}sessionStorage.setItem('itc-promoter-pulse-auth','true');setLogin(true);toast('Signed in successfully.')};
-$('#logout').onclick=()=>{sessionStorage.removeItem('itc-promoter-pulse-auth');stopStream();$('#login-form').reset();setLogin(false)};
-function load(){try{const saved=JSON.parse(localStorage.getItem('promoter-pulse-demo'));if(!saved)return structuredClone(seed);const demoAsha=seed.promoters[0],asha=saved.promoters?.find(p=>p.id===demoAsha.id);if(asha&&!asha.assessmentResult){asha.assessmentResult=structuredClone(demoAsha.assessmentResult);asha.score=demoAsha.score}return saved}catch{return structuredClone(seed)}}
-function save(){localStorage.setItem('promoter-pulse-demo',JSON.stringify(state));renderAdmin();populatePromoters()}
-function recordingsDb(){return new Promise((resolve,reject)=>{const request=indexedDB.open('itc-promoter-pulse-recordings',1);request.onupgradeneeded=()=>request.result.createObjectStore('recordings');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
-async function saveRecording(id,blob){if(!blob)return false;try{const db=await recordingsDb();await new Promise((resolve,reject)=>{const r=db.transaction('recordings','readwrite').objectStore('recordings').put(blob,id);r.onsuccess=resolve;r.onerror=()=>reject(r.error)});return true}catch{return false}}
-async function loadRecording(id){try{const db=await recordingsDb();return await new Promise((resolve,reject)=>{const r=db.transaction('recordings').objectStore('recordings').get(id);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}catch{return null}}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function toast(text){const t=$('#toast');t.textContent=text;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-function view(id){$$('.view').forEach(x=>x.classList.toggle('active',x.id===id));$$('.nav-btn').forEach(x=>x.classList.toggle('active',x.dataset.view===id));if(id==='admin')renderAdmin()}
-$$('.nav-btn').forEach(b=>b.onclick=()=>view(b.dataset.view));
-function populatePromoters(){const select=$('#promoter-select'), old=select.value;select.innerHTML=state.promoters.map(p=>`<option value="${p.id}">${esc(p.name)} — ${esc(p.store)}</option>`).join('');select.value=old||state.promoters[0].id;identity()}
-function populateAssessmentOptions(){$('#language-select').innerHTML=Object.keys(languages).map(l=>`<option value="${l}">${l}</option>`).join('');$('#brand-select').innerHTML=brands.map(b=>`<option value="${b}">${b}</option>`).join('')}
-function assessment(){return {language:$('#language-select').value,brand:$('#brand-select').value}}
-function questionsForAssessment(){const {language,brand}=assessment();return languages[language].map(q=>q.replaceAll('{brand}',brand))}
-function selected(){return state.promoters.find(p=>p.id===$('#promoter-select').value)}
-function identity(){const p=selected();$('#identity-card').innerHTML=`${esc(p.name)}<span>${esc(p.store)} · ${esc(p.city)}</span>`}
-$('#promoter-select').onchange=identity;
-function inWindow(){const now=new Date(), minute=now.getHours()*60+now.getMinutes(), parse=s=>{let [h,m]=s.split(':').map(Number);return h*60+m};return minute>=parse(state.settings.start)&&minute<=parse(state.settings.end)}
-function begin(){if(!$('#consent').checked)return toast('Please accept recording consent to continue.');if(!inWindow())return toast(`This link is active from ${state.settings.start} to ${state.settings.end}.`);show('device-check');startCamera()}
-$('#begin-check').onclick=begin;
-function show(id){['assessment-start','device-check','recording','complete'].forEach(x=>$('#'+x).classList.toggle('hidden',x!==id))}
-async function startCamera(){try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:true});$('#preview').srcObject=stream;$('#recording-preview').srcObject=stream;$('#camera-status').classList.add('ok');$('#device-status').textContent='Camera and microphone ready.';$('#start-interview').disabled=false}catch(e){$('#device-status').textContent='Camera or microphone blocked. Allow access and try again.';toast('Please allow camera and microphone access.')}}
-$('.back').onclick=()=>{stopStream();show('assessment-start')};
-function stopStream(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null}
-function startTranscription(){const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Recognition)return;recognition=new Recognition();recognition.lang=languageCodes[assessment().language]||'en-IN';recognition.continuous=true;recognition.interimResults=false;recognition.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)currentTranscript+=' '+e.results[i][0].transcript};try{recognition.start()}catch{}}
-function stopTranscription(){if(recognition){try{recognition.stop()}catch{}recognition=null}}
-$('#start-interview').onclick=()=>{questionIndex=0;chunks=[];transcriptParts=[];currentTranscript='';if(recordingUrl)URL.revokeObjectURL(recordingUrl);recordingUrl=null;try{recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>e.data.size&&chunks.push(e.data);recorder.onstop=finalizeRecording;recorder.start(1000)}catch{recorder=null;toast('Video recording is not supported in this browser.')};startTranscription();startedAt=Date.now();interval=setInterval(timer,500);renderQuestion();show('recording')};
-function timer(){const s=Math.floor((Date.now()-startedAt)/1000);$('#elapsed').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
-function renderQuestion(){const questions=questionsForAssessment();const {language,brand}=assessment();$('#assessment-context').textContent=`${brand} · ${language}`;$('#question-count').textContent=`QUESTION ${questionIndex+1} OF ${questions.length}`;$('#question-text').textContent=questions[questionIndex];$('#progress-bar').style.width=`${((questionIndex+1)/questions.length)*100}%`;$('#next-question').textContent=questionIndex===questions.length-1?'Finish and submit':'Next question'}
-$('#next-question').onclick=()=>{transcriptParts[questionIndex]=currentTranscript.trim();currentTranscript='';if(questionIndex<questionsForAssessment().length-1){questionIndex++;renderQuestion()}else finish()};
-function countMatches(text,keywords){return keywords.filter(k=>text.includes(k)).length}
-function scoreAssessment(){const a=assessment(),all=transcriptParts.join(' ').toLowerCase(),pitch=(transcriptParts[4]||'').toLowerCase(),productHits=countMatches(all,brandKeywords[a.brand]||[]),sellingHits=countMatches(all,['customer','shopper','benefit','value','quality','buy','choice','recommend','offer','price']),words=all.trim()?all.trim().split(/\s+/).length:0,brandMention=all.includes(a.brand.toLowerCase());const spiel=Math.min(30,(brandMention?8:0)+Math.min(12,productHits*3)+(pitch.split(/\s+/).filter(Boolean).length>=20?10:0)),knowledge=Math.min(25,productHits*5),selling=Math.min(20,sellingHits*3+((transcriptParts[3]||'').trim()?5:0)),communication=Math.min(15,Math.floor(words/12)*3),completion=10;return {total:spiel+knowledge+selling+communication+completion,rows:[['Brand spiel delivery',spiel,30,brandMention?'Brand name and spiel vocabulary detected.':'Brand mention was not detected in the transcript.'],['Product knowledge',knowledge,25,`${productHits} product-keyword match(es) against the ${a.brand} rubric.`],['Selling / pitching',selling,20,`${sellingHits} selling-language match(es), including value/benefit/objection terms.`],['Communication',communication,15,`${words} recognised word(s); score reflects answer length and fluency proxy.`],['Completion',completion,10,'All five questions were completed in one continuous take.']]}}
-async function finalizeRecording(){const blob=chunks.length?new Blob(chunks,{type:recorder?.mimeType||'video/webm'}):null;if(blob){recordingUrl=URL.createObjectURL(blob);$('#recorded-video').src=recordingUrl;$('#recording-result').classList.remove('hidden')}else $('#recording-result').classList.add('hidden');const p=selected(),a=assessment(),result=scoreAssessment(),transcript=transcriptParts.join(' ').trim(),recordingSaved=await saveRecording(p.id,blob);p.status='submitted';p.score=result.total;p.assessmentResult={brand:a.brand,language:a.language,transcript,rows:result.rows,total:result.total,hasRecording:recordingSaved};state.audit.unshift({text:`${p.name} submitted ${a.brand} daily assessment in ${a.language} for ${p.store}.`,time:'Just now'});save();stopStream();$('#complete-name').textContent=p.name.split(' ')[0];$('#reference').textContent='DLY-'+Date.now().toString().slice(-6);$('#overall-score').textContent=`${result.total}/100`;$('#score-preview').innerHTML=`<div><strong>${result.total}/100</strong><br />Rubric-based prototype score</div><div>${a.brand} · ${a.language}<br />One continuous take</div>`;$('#score-explanation').innerHTML=result.rows.map(r=>`<div class="score-row"><span><strong>${r[0]}</strong><br><small>${r[3]}</small></span><strong>${r[1]}/${r[2]}</strong></div>`).join('')+'<p class="score-note">Prototype basis: browser speech transcription and keyword matching. If transcript is unavailable, scores require human review. Production scoring should use an approved multilingual answer rubric and human calibration.</p>';$('#transcript-status').textContent=transcript?'Speech transcript was used for the score.':'No browser transcript was captured; only completion score could be awarded.';show('complete')}
-function finish(){clearInterval(interval);stopTranscription();if(recorder&&recorder.state!=='inactive')recorder.stop();else finalizeRecording()}
-$('#again').onclick=()=>{show('assessment-start');$('#consent').checked=false};
-function renderAdmin(){const p=state.promoters,completed=p.filter(x=>x.status==='submitted'),pending=p.filter(x=>x.status==='pending'),incomplete=p.filter(x=>x.status==='incomplete');$('#metrics').innerHTML=[[''+p.length,'Assigned today'],[''+completed.length,'Submitted'],[''+pending.length,'Awaiting'],[''+incomplete.length,'Needs retry']].map(x=>`<div class="metric"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');$('#today-label').textContent=new Date().toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});$('#status-table').innerHTML=p.map(x=>`<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.store)}</small></td><td>${esc(x.city)}</td><td><span class="badge ${x.status}">${x.status}</span></td><td>${x.score!==null&&x.score!==undefined?x.score+'/100':'—'}</td><td>${x.assessmentResult?`<button class="secondary review-button" data-review="${x.id}">Review</button>`:''}<button class="text-button" data-void="${x.id}">${x.status==='submitted'?'Void':''}</button></td></tr>`).join('');$$('[data-review]').forEach(b=>b.onclick=()=>showAdminReview(b.dataset.review));$$('[data-void]').forEach(b=>b.onclick=()=>{if(!b.textContent)return;const q=state.promoters.find(x=>x.id===b.dataset.void);q.status='incomplete';q.score=null;state.audit.unshift({text:`Assessment voided for ${q.name}; reason recorded: admin review.`,time:'Just now'});save();toast('Interview voided and added to retry list.')});$('#chase-list').innerHTML=p.filter(x=>x.status!=='submitted').map(x=>`<div class="chase-item"><span><strong>${esc(x.name)}</strong><br><span class="muted">${esc(x.store)}</span></span><span class="badge ${x.status}">${x.status}</span></div>`).join('')||'<p class="hint">Everyone has completed today’s check-in.</p>';$('#audit-log').innerHTML=state.audit.slice(0,6).map(x=>`<div class="audit-item"><span>${esc(x.text)}</span><time>${esc(x.time)}</time></div>`).join('');$('#start-time').value=state.settings.start;$('#end-time').value=state.settings.end;$('#recipient').value=state.settings.recipient;$('#replace-position').innerHTML=p.map(x=>`<option value="${x.id}">${esc(x.store)} — ${esc(x.name)}</option>`).join('')}
-async function showAdminReview(id){const p=state.promoters.find(x=>x.id===id),r=p?.assessmentResult,box=$('#admin-review');if(!r)return;box.classList.remove('hidden');box.innerHTML=`<div class="section-title"><div><p class="eyebrow">ASSESSMENT REVIEW</p><h2>${esc(p.name)} — ${esc(p.store)}</h2></div><span class="overall-score">${r.total}/100</span></div><div class="review-grid"><div id="review-video-slot"><p class="review-empty">Loading recording…</p></div><div><div class="review-meta"><span>${esc(r.brand)}</span><span>${esc(r.language)}</span><span>One continuous take</span></div><h3>AI scoring evidence</h3>${r.rows.map(row=>`<div class="score-row"><span><strong>${row[0]}</strong><br><small>${row[3]}</small></span><strong>${row[1]}/${row[2]}</strong></div>`).join('')}<h3>Captured transcript</h3><p class="review-transcript">${r.transcript?esc(r.transcript):'No browser transcript was captured; human review is required.'}</p></div></div>`;const blob=r.hasRecording?await loadRecording(id):null,slot=$('#review-video-slot');if(blob){const url=URL.createObjectURL(blob);slot.innerHTML=`<h3>Submitted recording</h3><video controls playsinline src="${url}"></video><p class="hint">Stored locally in this prototype browser.</p>`}else if(r.sampleVideo)slot.innerHTML=`<h3>Submitted recording</h3><video controls playsinline src="${r.sampleVideo}"></video><p class="hint">Demo recording included with the prototype.</p>`;else slot.innerHTML='<h3>Submitted recording</h3><p class="review-empty">Recording file is not available in this browser. Complete a new check-in after this update to make it available here.</p>'}
-$('#save-settings').onclick=()=>{state.settings={start:$('#start-time').value,end:$('#end-time').value,recipient:$('#recipient').value};state.audit.unshift({text:`Assessment settings updated; window ${state.settings.start}–${state.settings.end}.`,time:'Just now'});save();toast('Daily configuration saved.')};
-$('#copy-link').onclick=async()=>{const p=selected(), link=location.href.split('?')[0]+'?promoter='+p.id;try{await navigator.clipboard.writeText(link);toast('Personal demo link copied.')}catch{toast('Demo link: '+link)}};
-$('#send-chase').onclick=()=>toast(`Chase message prepared for ${state.promoters.filter(x=>x.status!=='submitted').length} promoter(s).`);
-$('#preview-replacement').onclick=()=>{const p=state.promoters.find(x=>x.id===$('#replace-position').value), name=$('#replacement-name').value.trim(), phone=$('#replacement-phone').value.trim();if(!name||!phone)return toast('Enter the replacement name and phone number.');$('#replacement-preview').innerHTML=`<strong>Confirm change</strong><br>${esc(p.name)} → ${esc(name)}<br>Old link will be deactivated; ${esc(p.store)} history remains intact.`;$('#replacement-preview').classList.remove('hidden');$('#confirm-replacement').classList.remove('hidden')};
-$('#confirm-replacement').onclick=()=>{const p=state.promoters.find(x=>x.id===$('#replace-position').value), old=p.name;p.name=$('#replacement-name').value.trim();p.phone=$('#replacement-phone').value.trim();p.status='pending';p.score=null;state.audit.unshift({text:`Promoter replacement confirmed at ${p.store}: ${old} replaced by ${p.name}; old link deactivated.`,time:'Just now'});$('#replacement-name').value='';$('#replacement-phone').value='';$('#replacement-preview').classList.add('hidden');$('#confirm-replacement').classList.add('hidden');save();toast('Replacement applied and new link activated.')};
-$('#reset-demo').onclick=()=>{if(confirm('Reset all demo completion and replacement data?')){state=structuredClone(seed);save();toast('Demo data reset.')}};
-const params=new URLSearchParams(location.search);populatePromoters();populateAssessmentOptions();if(params.has('promoter')&&state.promoters.some(p=>p.id===params.get('promoter')))$('#promoter-select').value=params.get('promoter');identity();renderAdmin();
-setLogin(sessionStorage.getItem('itc-promoter-pulse-auth')==='true');
+// Global State
+let mediaRecorder;
+let recordedChunks = [];
+let recognition;
+let finalTranscript = "";
+let recordedVideoBlob = null;
+
+// Switch Between Promoter Room & Admin Dashboard
+function switchView(view) {
+  document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
+
+  if (view === 'promoter') {
+    document.getElementById('promoter-view').classList.add('active');
+    document.getElementById('tab-promoter-btn').classList.add('active');
+  } else {
+    document.getElementById('admin-view').classList.add('active');
+    document.getElementById('tab-admin-btn').classList.add('active');
+    loadAdminDashboard();
+  }
+}
+
+// -------------------------------------------------------------
+// 1. LIVE SPEECH-TO-TEXT & VIDEO RECORDING
+// -------------------------------------------------------------
+async function startPromoterSession() {
+  finalTranscript = "";
+  recordedChunks = [];
+  const transcriptBox = document.getElementById("live-transcript-box");
+  const selectedLang = document.getElementById("stt-language").value;
+  transcriptBox.innerHTML = "<em>Listening... Speak your brand pitch now.</em>";
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById("camera-preview").srcObject = stream;
+    document.getElementById("recording-badge").style.display = "block";
+
+    // MediaRecorder for Video Capture
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+      recordedVideoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+    };
+    mediaRecorder.start();
+
+    // Web Speech API for Real-Time Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      transcriptBox.innerHTML = "<span style='color:red;'>Real-time STT requires Chrome or Edge browser.</span>";
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = selectedLang;
+
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + " ";
+          } else {
+            interim += event.results[i][0].transcript;
+          }
+        }
+        transcriptBox.innerHTML = `<strong>${finalTranscript}</strong> <span style="color:#777;">${interim}</span>`;
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      };
+
+      recognition.onerror = (err) => {
+        console.warn("STT Error:", err);
+      };
+
+      recognition.start();
+    }
+
+    document.getElementById("start-record-btn").disabled = true;
+    document.getElementById("stop-record-btn").disabled = false;
+
+  } catch (err) {
+    alert("Camera/Microphone Permission Error: " + err.message);
+  }
+}
+
+function stopPromoterSession() {
+  if (recognition) recognition.stop();
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+
+  document.getElementById("recording-badge").style.display = "none";
+  const stream = document.getElementById("camera-preview").srcObject;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+
+  document.getElementById("start-record-btn").disabled = false;
+  document.getElementById("stop-record-btn").disabled = true;
+}
+
+// -------------------------------------------------------------
+// 2. AI EVALUATION & DATABASE STORAGE
+// -------------------------------------------------------------
+async function submitForAssessment() {
+  const apiKey = document.getElementById("gemini-api-key").value.trim();
+  const name = document.getElementById("candidate-name").value.trim();
+  const store = document.getElementById("store-name").value.trim();
+  const masterSpiel = document.getElementById("master-spiel").value.trim();
+
+  if (!apiKey) {
+    alert("Please enter a Gemini API Key.");
+    return;
+  }
+  if (!finalTranscript) {
+    alert("No speech transcript recorded. Please record your pitch first.");
+    return;
+  }
+
+  const evalCard = document.getElementById("evaluation-card");
+  const evalContent = document.getElementById("eval-content");
+  evalCard.style.display = "block";
+  evalContent.innerHTML = "<p>⏳ AI evaluating pitch transcript, spiel accuracy, and competencies...</p>";
+
+  const prompt = `
+  You are an operations talent assessor evaluating a retail promoter pitch.
+  Candidate Name: ${name}
+  Target Master Spiel: "${masterSpiel}"
+  Candidate Delivered Transcript: "${finalTranscript}"
+
+  Evaluate the candidate and return valid JSON with this exact structure:
+  {
+    "detected_language": "Hindi/English/etc.",
+    "brand_spiel_accuracy_score": 4,
+    "communication_score": 4,
+    "product_knowledge_score": 5,
+    "selling_pitch_score": 4,
+    "overall_rating": 4.25,
+    "is_reading": false,
+    "reading_explanation": "Natural cadence and delivery.",
+    "recommendation": "Recommended",
+    "strengths": ["Clear pronunciation", "Covered key USP"],
+    "improvements": ["Can emphasize the price offer more strongly"]
+  }
+  `;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
+    });
+
+    const data = await response.json();
+    const evalData = JSON.parse(data.candidates[0].content.parts[0].text);
+
+    // Render result card
+    evalContent.innerHTML = `
+      <h4>Overall Verdict: <strong>${evalData.recommendation}</strong> (${evalData.overall_rating} / 5.0)</h4>
+      <p><strong>Spiel Accuracy:</strong> ${evalData.brand_spiel_accuracy_score}/5 | <strong>Communication:</strong> ${evalData.communication_score}/5 | <strong>Product Knowledge:</strong> ${evalData.product_knowledge_score}/5</p>
+      <p><strong>Anti-Cheating / Gaze Check:</strong> ${evalData.reading_explanation}</p>
+    `;
+
+    // Persist to LocalStorage for Admin Dashboard
+    const submissionRecord = {
+      id: Date.now(),
+      timestamp: new Date().toLocaleString(),
+      name,
+      store,
+      transcript: finalTranscript,
+      evaluation: evalData,
+      status: evalData.recommendation === "Recommended" ? "APPROVED" : "FLAGGED"
+    };
+
+    const existing = JSON.parse(localStorage.getItem("itc_promoter_submissions") || "[]");
+    existing.unshift(submissionRecord);
+    localStorage.setItem("itc_promoter_submissions", JSON.stringify(existing));
+
+    alert("✅ Assessment saved to Operations Admin Dashboard!");
+
+  } catch (err) {
+    evalContent.innerHTML = `<span style="color:red;">Evaluation Error: ${err.message}</span>`;
+  }
+}
+
+// -------------------------------------------------------------
+// 3. OPERATIONS ADMIN DASHBOARD
+// -------------------------------------------------------------
+function loadAdminDashboard() {
+  const container = document.getElementById("admin-submissions-list");
+  const kpiContainer = document.getElementById("admin-kpi-summary");
+  const submissions = JSON.parse(localStorage.getItem("itc_promoter_submissions") || "[]");
+
+  if (submissions.length === 0) {
+    kpiContainer.innerHTML = "";
+    container.innerHTML = "<p>No promoter submissions found yet. Complete a pitch recording first.</p>";
+    return;
+  }
+
+  // KPIs
+  const total = submissions.length;
+  const approved = submissions.filter(s => s.status === "APPROVED").length;
+  const flagged = submissions.filter(s => s.status === "FLAGGED").length;
+
+  kpiContainer.innerHTML = `
+    <div class="kpi-card"><h4>Total Screened</h4><p>${total}</p></div>
+    <div class="kpi-card"><h4>Approved</h4><p style="color:#28a745;">${approved}</p></div>
+    <div class="kpi-card"><h4>Flagged for Review</h4><p style="color:#dc3545;">${flagged}</p></div>
+  `;
+
+  // Submission Cards
+  container.innerHTML = submissions.map(sub => `
+    <div class="submission-card ${sub.status.toLowerCase()}">
+      <div class="submission-title">
+        <strong>${sub.name}</strong> - <span>${sub.store}</span>
+        <span class="status-pill ${sub.status.toLowerCase()}">${sub.status}</span>
+      </div>
+      <div class="sub-meta">Recorded: ${sub.timestamp} | Rating: ${sub.evaluation.overall_rating}/5.0 (${sub.evaluation.recommendation})</div>
+      
+      <div class="admin-grid-2">
+        <div>
+          <h5>📜 Stored Real-Time Transcript:</h5>
+          <div class="transcript-box-admin">${sub.transcript}</div>
+        </div>
+        <div>
+          <h5>🎯 Competency Breakdown:</h5>
+          <ul>
+            <li>Brand Spiel Accuracy: ${sub.evaluation.brand_spiel_accuracy_score}/5</li>
+            <li>Communication: ${sub.evaluation.communication_score}/5</li>
+            <li>Product Knowledge: ${sub.evaluation.product_knowledge_score}/5</li>
+            <li>Anti-Reading Check: ${sub.evaluation.reading_explanation}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `).join("");
+}
